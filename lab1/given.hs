@@ -3,6 +3,7 @@ import System.Random
 import Criterion.Main
 import Control.Parallel
 import Control.DeepSeq
+import Control.Parallel.Strategies
 
 -- code borrowed from the Stanford Course 240h (Functional Systems in Haskell)
 -- I suspect it comes from Bryan O'Sullivan, author of Criterion
@@ -26,28 +27,44 @@ resamples k xs =
 
 
 jackknife :: ([a] -> b) -> [a] -> [b]
-jackknife f = smap f . resamples 500
+jackknife f = map f . resamples 500
 
 smap :: (a -> b) -> [a] -> [b]
 smap f [] = []
-smap f (x:xs) = par sf2 (pseq sf1 (sf1 : sf2))
+smap f (x:xs) = par sf1 (pseq sf2 (sf1 : sf2))
   where sf1 = f x
         sf2 = smap f xs
 
 s2map :: (a -> b) -> [a] -> [b]
 s2map f [] = []
-s2map f xs = par p1 (pseq p2 (p1 ++ p2))
-  where (h,t) = splitAt 100 xs
-        p1 = force map f h
+s2map f xs = par ( p1) (pseq ( p2) (p1 ++ p2))
+  where (h,t) = splitAt (div (length xs) 2) xs
+        p1 = s2map f h
         p2 = s2map f t
 
---rmap :: (a -> b) -> [a] -> [b]
+rmap :: (a -> b) -> [a] -> [b]
+rmap f [] = []
+rmap f (x:xs) =  runEval $ do
+    a <- rpar (f x)
+    b <- rpar (rmap f xs)
+    return (a : b)
+
+rdmap :: Integer -> (a -> b) -> [a] -> [b]
+rdmap 0 f xs = map f xs
+rdmap d f [] = []
+rdmap d f (x:[]) = [f x]
+rdmap d f l = runEval $ do
+  let (xs,ys) = splitAt ((length l + 1) `div` 2) l
+  a <- rpar (rdmap (d-1) f xs)
+  b <- rpar (rdmap (d-1) f ys)
+  rseq a
+  rseq b
+  return (a ++ b)
 
 crud = zipWith (\x a -> sin (x / 300)**2 + a) [0..]
 
 main = do
-  let (xs,ys) = splitAt 1500  (take 6000
-                               (randoms (mkStdGen 211570155)) :: [Float] )
+  let (xs,ys) = splitAt 1500  (take 6000(randoms (mkStdGen 211570155)) :: [Float] )
   -- handy (later) to give same input different parallel functions
 
   let rs = crud xs ++ ys
@@ -60,4 +77,5 @@ main = do
         [
          bench "jackknife" (nf (jackknife  mean) rs)
          ]
+
 
