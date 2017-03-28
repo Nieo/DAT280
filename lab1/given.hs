@@ -27,7 +27,7 @@ resamples k xs =
 
 
 jackknife :: ([a] -> b) -> [a] -> [b]
-jackknife f = map f . resamples 500
+jackknife f = rmap f . resamples 500
 
 smap :: (a -> b) -> [a] -> [b]
 smap f [] = []
