@@ -25,9 +25,12 @@ resamples k xs =
     take (length xs - k) $
     zipWith (++) (inits xs) (map (drop k) (tails xs))
 
+-- map 12 sec
+jackknife :: NFData b => ([a] -> b) -> [a] -> [b]
+jackknife f = rmap f . resamples 500
 
-jackknife :: ([a] -> b) -> [a] -> [b]
-jackknife f = map f . resamples 500
+jackknife2 :: NFData b => ([a] -> b) -> [a] -> [b]
+jackknife2 f xs = (map f (resamples 500 xs)) `using` parListChunk 100 rseq
 
 smap :: (a -> b) -> [a] -> [b]
 smap f [] = []
@@ -35,12 +38,13 @@ smap f (x:xs) = par sf1 (pseq sf2 (sf1 : sf2))
   where sf1 = f x
         sf2 = smap f xs
 
-s2map :: (a -> b) -> [a] -> [b]
-s2map f [] = []
-s2map f xs = par ( p1) (pseq ( p2) (p1 ++ p2))
+s2map :: NFData b => Integer -> (a -> b) -> [a] -> [b]
+s2map 0 f xs = map f xs
+s2map d f [] = []
+s2map d f xs = par (p1) (pseq (p2) (p1 ++ p2))
   where (h,t) = splitAt (div (length xs) 2) xs
-        p1 = s2map f h
-        p2 = s2map f t
+        p1 = s2map (d-1) f h
+        p2 = s2map (d-1) f t
 
 rmap :: (a -> b) -> [a] -> [b]
 rmap f [] = []
