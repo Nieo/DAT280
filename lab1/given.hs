@@ -27,40 +27,40 @@ resamples k xs =
 
 -- map 12 sec
 jackknife :: NFData b => ([a] -> b) -> [a] -> [b]
-jackknife f = rmap f . resamples 500
+jackknife f = bmap f . resamples 500
 
 jackknife2 :: NFData b => ([a] -> b) -> [a] -> [b]
 jackknife2 f xs = (map f (resamples 500 xs)) `using` parListChunk 100 rseq
 
-smap :: (a -> b) -> [a] -> [b]
-smap f [] = []
-smap f (x:xs) = par sf1 (pseq sf2 (sf1 : sf2))
+amap :: (a -> b) -> [a] -> [b]
+amap f [] = []
+amap f (x:xs) = par sf1 (pseq sf2 (sf1 : sf2))
   where sf1 = f x
-        sf2 = smap f xs
+        sf2 = amap f xs
 
-s2map :: NFData b => Integer -> (a -> b) -> [a] -> [b]
-s2map 0 f xs = map f xs
-s2map d f [] = []
-s2map d f xs = par (p1) (pseq (p2) (p1 ++ p2))
+a2map :: NFData b => Integer -> (a -> b) -> [a] -> [b]
+a2map 0 f xs = map f xs
+a2map d f [] = []
+a2map d f xs = par (p1) (pseq (p2) (p1 ++ p2))
   where (h,t) = splitAt (div (length xs) 2) xs
-        p1 = s2map (d-1) f h
-        p2 = s2map (d-1) f t
+        p1 = a2map (d-1) f h
+        p2 = a2map (d-1) f t
 
-rmap :: (a -> b) -> [a] -> [b]
-rmap f [] = []
-rmap f (x:xs) =  runEval $ do
+bmap :: (a -> b) -> [a] -> [b]
+bmap f [] = []
+bmap f (x:xs) =  runEval $ do
     a <- rpar (f x)
-    b <- rpar (rmap f xs)
+    b <- rpar (bmap f xs)
     return (a : b)
 
-rdmap :: Integer -> (a -> b) -> [a] -> [b]
-rdmap 0 f xs = map f xs
-rdmap d f [] = []
-rdmap d f (x:[]) = [f x]
-rdmap d f l = runEval $ do
+bdmap :: Integer -> (a -> b) -> [a] -> [b]
+bdmap 0 f xs = map f xs
+bdmap d f [] = []
+bdmap d f (x:[]) = [f x]
+bdmap d f l = runEval $ do
   let (xs,ys) = splitAt ((length l + 1) `div` 2) l
-  a <- rpar (rdmap (d-1) f xs)
-  b <- rpar (rdmap (d-1) f ys)
+  a <- rpar (bdmap (d-1) f xs)
+  b <- rpar (bdmap (d-1) f ys)
   rseq a
   rseq b
   return (a ++ b)
