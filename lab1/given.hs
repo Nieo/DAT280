@@ -4,6 +4,7 @@ import Criterion.Main
 import Control.Parallel
 import Control.DeepSeq
 import Control.Parallel.Strategies
+import Control.Monad.Par
 
 -- code borrowed from the Stanford Course 240h (Functional Systems in Haskell)
 -- I suspect it comes from Bryan O'Sullivan, author of Criterion
@@ -27,7 +28,7 @@ resamples k xs =
 
 -- map 12 sec
 jackknife :: NFData b => ([a] -> b) -> [a] -> [b]
-jackknife f = bmap f . resamples 500
+jackknife f = dmap f . resamples 500
 
 jackknife2 :: NFData b => ([a] -> b) -> [a] -> [b]
 jackknife2 f xs = (map f (resamples 500 xs)) `using` parListChunk 100 rseq
@@ -49,8 +50,9 @@ a2map d f xs = par (p1) (pseq (p2) (p1 ++ p2))
 bmap :: (a -> b) -> [a] -> [b]
 bmap f [] = []
 bmap f (x:xs) =  runEval $ do
-    a <- rpar (f x)
+    a <- rseq (f x)
     b <- rpar (bmap f xs)
+    rseq b
     return (a : b)
 
 bdmap :: Integer -> (a -> b) -> [a] -> [b]
@@ -64,6 +66,20 @@ bdmap d f l = runEval $ do
   rseq a
   rseq b
   return (a ++ b)
+
+
+dmap :: NFData b => (a -> b) -> [a] -> [b]
+dmap f [] = []
+dmap f xs = runPar $ do
+  xs' <- dmap' (return . f ) xs
+  return xs'
+
+
+dmap' :: NFData b => (a -> Par b) -> [a] -> Par [b]
+dmap' f xs = do
+  is <- mapM (spawn . f) xs
+  mapM get is
+
 
 crud = zipWith (\x a -> sin (x / 300)**2 + a) [0..]
 
