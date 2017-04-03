@@ -4,7 +4,32 @@ Report Lab 1
 
 Assignment 1 (jackknife)
 ------------------------
-TODO
+- Benchmark (using regular map function on one core): 12.0 s
+
+- (We have tried running the tests described below with different variables for runtime flags -A and -H. This does not seem to make any big difference for the performance.)
+
+- We submit code for the fastest solution we could come up with for each approach.
+
+----
+a.
+In the function amap, we use par and pseq to spark every single function call. This did not perform very well; the running time compared to benchmark nearly doubled.
+
+In the function a2map, we use a variable d to control granularity by only sparking until we reach depth d of the tree. Although this gave better performance than amap, it is still slower than benchmark; The best time we got was with d=1, which ran in 13.9. The fact that we were not able to increase speed this way is probably because this method requires a lot of expensive garbage collection.
+
+----
+b.
+For the function bmap, we experimented with rpar an rseq. Our best performing solution is the pattern rpar/rseq/rseq. Its performance varies between different test runs, but we get results around 10 s, which is a little speedup compared to benchmark.
+
+We introduce control of granularity in the function b2map. The variable d controls depth in the tree. This does not seem to be a good idea (no value of d gave us better running time than benchmark), probably due to expensive garbage collection and list operations.
+
+----
+c.
+Here, our solution is the function cjackknife. It uses the strategy parListChunk together with rseq to parallelise and control granularity. With chunk size in the interval [500, 1000], we got our best speedups: Running time around 8.0 s.
+
+----
+d.
+In the function dmap (with helper function dmap'), we are in the Par monad. It forks on every item in the list. This gives good performance; running time of around 8.0 s. 
+----
 
 Assignment 2 (Merge sort)
 -------------------------
