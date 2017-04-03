@@ -1,5 +1,6 @@
 Report Lab 1
 ============
+(All performance tests are done on a MacBook Pro with two cores.)
 
 Assignment 1 (jackknife)
 ------------------------
@@ -9,6 +10,6 @@ Assignment 2 (Merge sort)
 -------------------------
 We tried two different approaches for parallelising merge sort. We submit code for the fastest solution we could come up with for each approach.
 
-Our method sort1 uses par and pseq in order to parallelise. We control granularity with a variable t. When getting down to sorting instances with length smaller than t, we resort to sequential merge sort. The best t for this approach is somewhere in the interval [10, 1000] (very little variation within this interval). The the best time we got was 7.4 s, compared to a sequential merge sort benchmark time of 11.1 s.
+Our method sort1 uses par and pseq in order to parallelise. We control granularity with a variable t. When getting down to sorting instances with length smaller than t, we resort to sequential merge sort. The best t for this approach is somewhere in the interval [10, 1000] (very little variation within this interval). The best time we got was 7.4 s on two cores, compared to a sequential merge sort benchmark time of 11.1 s.
 
-Our method sort2 uses combinations of rpar, rparWith, rseq, and rdeepseq in order to parallelise. We control granularity in the same way as in sort1, with a variable t. Many different combinations of the methods gave approximately the same performance. Also t anywhere in the interval [10, 1000] gave best results. The setup with the best performance we could come up with is in our submitted code. This setup ran in 7.6 s, compared to a sequential merge sort benchmark time of 11.1 s.
+Our method sort2 uses combinations of rpar, rparWith, rseq, and rdeepseq in order to parallelise. We control granularity in the same way as in sort1, with a variable t. Many different combinations of the above mentioned functions gave approximately the same performance. Also t anywhere in the interval [10, 1000] gave best results. The setup with the best performance we could come up with is in our submitted code. This setup ran in 7.6 s on two cores, compared to a sequential merge sort benchmark time of 11.1 s.
