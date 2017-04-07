@@ -1,4 +1,4 @@
--module(sudoku).
+-module(osudoku).
 %-include_lib("eqc/include/eqc.hrl").
 -compile(export_all).
 
@@ -98,48 +98,32 @@ refine(M) ->
     end.
 
 refine_rows(M) ->
-    %lists:map(fun refine_row/1,M).
-    %io:format("\nM ~p",[M]),
-    Refs = [send_to_pool(Row) || Row <- M],
-    [receive {Ref, Result} ->
-      case Result of
-        no_solution -> exit(no_solution);
-        X -> X
-      end
-     end || Ref <- Refs].
-
-
-send_to_pool(Row) ->
-  Ref = make_ref(),
-  whereis(m_worker_pool) ! {Ref, Row, self()},
-  Ref.
+    lists:map(fun refine_row/1,M).
 
 refine_row(Row) ->
     Entries = entries(Row),
     NewRow =
     [if is_list(X) ->
          case X--Entries of
-             [] -> no_solution; %exit(no_solution1);
-             [Y] -> Y;
-             NewX -> NewX
+             [] ->
+             exit(no_solution);
+             [Y] ->
+             Y;
+             NewX ->
+             NewX
          end;
         true ->
          X
      end
      || X <- Row],
     NewEntries = entries(NewRow),
-    case lists:member(no_solution, NewRow) of
-      false ->
-        %% check we didn't create a duplicate entry
-        case length(lists:usort(NewEntries)) == length(NewEntries) of
-        true ->
-            NewRow;
-        false ->
-            no_solution %exit(no_solution2)
-        end;
-      true ->
-        no_solution
-    end .
+    %% check we didn't create a duplicate entry
+    case length(lists:usort(NewEntries)) == length(NewEntries) of
+    true ->
+        NewRow;
+    false ->
+        exit(no_solution)
+    end.
 
 is_exit({'EXIT',_}) ->
     true;
@@ -208,7 +192,6 @@ update_nth(I,X,Xs) ->
 %% solve a puzzle
 
 solve(M) ->
-    %io:format("Starting a new solve"),
     Solution = solve_refined(refine(fill(M))),
     case valid_solution(Solution) of
     true ->
@@ -238,8 +221,11 @@ solve_one([M|Ms]) ->
     end.
 
 %% benchmarks
+% Executions 30
+% Sequential 21.5 sec
+% Each solution in parallel 14.4
 
--define(EXECUTIONS,1).
+-define(EXECUTIONS,30).
 
 bm(F) ->
     {T,_} = timer:tc(?MODULE,repeat,[F]),
@@ -249,13 +235,11 @@ repeat(F) ->
     [F() || _ <- lists:seq(1,?EXECUTIONS)].
 
 benchmarks(Puzzles) ->
-    Pid = spawn_link(fun ppool/0),
-    register(m_worker_pool, Pid),
     [{Name,bm(fun()->solve(M) end)} || {Name,M} <- Puzzles].
 
 benchmarks() ->
   {ok,Puzzles} = file:consult("problems.txt"),
-  timer:tc(?MODULE,benchmarks,[Puzzles]).
+  timer:tc(?MODULE,par_bench,[Puzzles]).
 
 %% check solutions for validity
 
@@ -268,72 +252,9 @@ valid_row(Row) ->
 valid_solution(M) ->
     valid_rows(M) andalso valid_rows(transpose(M)) andalso valid_rows(blocks(M)).
 
-
-ppool() ->
-  Workers = [spawn_link(fun worker/0) || _ <- lists:seq(1, erlang:system_info(schedulers)-1)],
-  ppool(Workers, []).
-
-
-ppool([],[]) ->
-  receive
-    {Ref, Row, Parent} -> ppool([], [{Ref, Row, Parent}]);
-    {available, Node} -> ppool([Node], [])
-  end;
-ppool([], [T|Tasks]) ->
-  receive
-    {Ref, Row, Parent} -> ppool([], [T|Tasks] ++ [{Ref, Row, Parent}]);
-    {available, Node} -> Node ! T,
-                         ppool([], Tasks)
-  end;
-ppool([W|Workers], []) ->
-  receive
-    {Ref, Row, Parent} -> W ! {Ref,  Row, Parent},
-                              ppool(Workers, []);
-    {available, Node} -> ppool([Node] ++ [W|Workers], [])
-  end.
-
-worker() ->
-  receive
-    {Ref, Row, Parent} ->
-      %io:format("Ref ~p Row ~p Parent ~p",[Ref,Row,Parent]),
-      Result = refine_row(Row),
-      %io:format("Result ~p",[Result]),
-      Parent ! {Ref,Result},
-      whereis(m_worker_pool) ! {available, self()},
-      worker()
-  end.
-
-
-
-% par_benchmarks([], Completed) when length(Completed) < 7 -> receive
-%                                                               {Result} -> par_benchmarks([], Completed ++ [Result])
-%                                                             end;
-% par_benchmarks([], Completed) -> Completed;
-% par_benchmarks([P|Puzzles], Completed) ->
-%   case PoolPid ! {self(),[P]} of
-%     {no_worker_available} ->
-%       receive
-%         {Result} -> par_benchmarks([P|Puzzles], Completed ++ [Result])
-%       end;
-%     {ok} -> par_benchmarks(Puzzles, Completed)
-%   end.
-
-
-% m_worker_pool([A|Available],All) ->
-%   receive
-%     {Pid, Puzzle} -> case length([A|Available]) =:= 0 of ->
-%       true -> Pid ! {no_worker_available},
-%               m_worker_pool([], All)
-%       false -> A ! {Pid, Puzzle},
-%                Pid ! {ok}
-%                m_worker_pool(Available, All)
-%   end
-
-
-% worker() ->
-%   receive
-%     {Source, Work, Parameters} -> Result = Work(Parameters),
-%       Source ! {Result},
-%       worker()
-%   end.
-
+par_bench(Puzzles) ->
+  Parent = self(),
+  Pids = [spawn(fun() -> Parent ! {self(), benchmarks([P])} end) || P <- Puzzles],
+  [receive
+    {P, Result} -> Result
+  end || P <- Pids].
