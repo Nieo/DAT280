@@ -38,3 +38,9 @@ We tried two different approaches for parallelising merge sort. We submit code f
 Our method sort1 uses par and pseq in order to parallelise. We control granularity with a variable t. When getting down to sorting instances with length smaller than t, we resort to sequential merge sort. The best t for this approach is somewhere in the interval [10, 1000] (very little variation within this interval). The best time we got was 7.4 s on two cores, compared to a sequential merge sort benchmark time of 11.1 s.
 
 Our method sort2 uses combinations of rpar, rparWith, rseq, and rdeepseq in order to parallelise. We control granularity in the same way as in sort1, with a variable t. Many different combinations of the above mentioned functions gave approximately the same performance. Also t anywhere in the interval [10, 1000] gave best results. The setup with the best performance we could come up with is in our submitted code. This setup ran in 7.6 s on two cores, compared to a sequential merge sort benchmark time of 11.1 s.
+
+----
+Reasons for choosing par/pseq and the Eval monad:
+
+We had an idea of how to implement this parallelisation, and we were rather quickly able to see how to implement this idea in the two methods that we chose. The Par monad seems more abstract and therefore it was a little harder for us to see how to implement our idea there.
+We did make our choice based on performance, and thereby we do not claim that we could not have done a better performing implementation using some other Haskell feature. Instead we made the choice by how easy it would be for us to reason about the implementation.
