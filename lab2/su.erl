@@ -1,4 +1,4 @@
--module(speculativesudoku).
+-module(su).
 %-include_lib("eqc/include/eqc.hrl").
 -compile(export_all).
 
@@ -192,71 +192,33 @@ update_nth(I,X,Xs) ->
 %% solve a puzzle
 
 solve(M) ->
-    Filled = refine(fill(M)),
-    Pid = self(),
-    [W|Workers] = [spawn(fun() -> worker_solve(Pid) end) || _ <- lists:seq(1, erlang:system_info(schedulers))],
-    Ref = make_ref(),
-    W ! {Filled, Ref},
-    receive
-      Ref ->
-        Solution = ppool(Workers, [W|Workers]),
-    %io:format("Done ~p\n", [Solution]).
-        Solution
-    after 5000 -> exit(no_response)
-    end
-        .
+    Solution = solve_refined(refine(fill(M))),
+    case valid_solution(Solution) of
+    true ->
+        Solution;
+    false ->
+        exit({invalid_solution,Solution})
+    end.
 
-solve_refined(Parent, M) ->
+solve_refined(M) ->
     case solved(M) of
     true ->
         M;
     false ->
-        solve_one(Parent, guesses(M))
+        solve_one(guesses(M))
     end.
 
-solve_one(_, []) ->
-    %io:format("Exit solve_one ~p \n", [self()]),
+solve_one([]) ->
     exit(no_solution);
-solve_one(Parent, [M]) ->
-    %io:format("~p ~p \n",[self(), M]),
-    solve_refined(Parent, M);
-solve_one(Parent, [M|Ms]) ->
-    Parent ! {speculate, M, self()},
-    receive
-      {yes} -> solve_one(Parent, Ms);
-      {no} ->
-        case catch solve_refined(Parent, M) of
-        {'EXIT',no_solution} ->
-            %io:format("CATCH\n"),
-            solve_one(Parent, Ms);
-        Solution ->
-            Solution
-        end
+solve_one([M]) ->
+    solve_refined(M);
+solve_one([M|Ms]) ->
+    case catch solve_refined(M) of
+    {'EXIT',no_solution} ->
+        solve_one(Ms);
+    Solution ->
+        Solution
     end.
-
-worker_solve(Parent) ->
-  %io:format("My parent is ~p \n", [Parent]),
-  receive
-    {M, Ref} ->
-      Parent ! Ref,
-      %io:format("Received ~p\n",[M]),
-      case catch solve_refined(Parent, M) of
-        {'EXIT',no_solution} ->
-          %io:format("got exit"),
-          Parent ! {done, self()};
-        Solution ->
-          %io:format("got solution"),
-          case valid_solution(Solution) of
-            true ->
-              %io:format("valid"),
-              Parent ! {solution, Solution};
-            false ->
-              %io:format("invalid"),
-              Parent ! {done, self()}
-          end
-      end
-  end,
-  worker_solve(Parent).
 
 %% benchmarks
 
@@ -286,36 +248,3 @@ valid_row(Row) ->
 
 valid_solution(M) ->
     valid_rows(M) andalso valid_rows(transpose(M)) andalso valid_rows(blocks(M)).
-
-
-
-ppool(Available, All) ->
-  %io:format("Available workers ~p", [Available]),
-  receive
-    {solution, Solution} ->
-      [exit(Child, done)|| Child <- All],
-      Solution;
-    {speculate, M, Brancher} ->
-        case Available of
-          [] -> Brancher ! {no},
-                ppool([], All);
-          [X|Xs] -> Ref = make_ref(),
-                    X ! {M, Ref},
-                    receive
-                      Ref -> Brancher ! {yes},
-                            ppool(Xs, All)
-                    after 100 ->
-                        Brancher ! {no},
-                        ppool([], All)
-                    end
-        end;
-    {done, Pid} ->
-        case lists:usort([Pid|Available]) == lists:usort(All) of
-          true -> exit(all_workers_stopped);
-          false ->
-            ppool([Pid|Available], All)
-        end
-  end
-  .
-
-
