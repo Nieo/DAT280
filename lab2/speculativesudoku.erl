@@ -194,11 +194,17 @@ update_nth(I,X,Xs) ->
 solve(M) ->
     Filled = refine(fill(M)),
     Pid = self(),
-    [W|Workers] = [spawn(fun() -> worker_solve(Pid) end) || _ <- lists:seq(1, erlang:system_info(schedulers)-2)],
-    W ! {Filled},
-    Solution = ppool(Workers, [W|Workers]),
+    [W|Workers] = [spawn(fun() -> worker_solve(Pid) end) || _ <- lists:seq(1, erlang:system_info(schedulers))],
+    Ref = make_ref(),
+    W ! {Filled, Ref},
+    receive
+      Ref ->
+        Solution = ppool(Workers, [W|Workers]),
     %io:format("Done ~p\n", [Solution]).
-    Solution.
+        Solution
+    after 5000 -> exit(no_response)
+    end
+        .
 
 solve_refined(Parent, M) ->
     case solved(M) of
@@ -209,8 +215,10 @@ solve_refined(Parent, M) ->
     end.
 
 solve_one(_, []) ->
+    %io:format("Exit solve_one ~p \n", [self()]),
     exit(no_solution);
 solve_one(Parent, [M]) ->
+    %io:format("~p ~p \n",[self(), M]),
     solve_refined(Parent, M);
 solve_one(Parent, [M|Ms]) ->
     Parent ! {speculate, M, self()},
@@ -219,6 +227,7 @@ solve_one(Parent, [M|Ms]) ->
       {no} ->
         case catch solve_refined(Parent, M) of
         {'EXIT',no_solution} ->
+            %io:format("CATCH\n"),
             solve_one(Parent, Ms);
         Solution ->
             Solution
@@ -228,9 +237,10 @@ solve_one(Parent, [M|Ms]) ->
 worker_solve(Parent) ->
   %io:format("My parent is ~p \n", [Parent]),
   receive
-    {M} ->
-      %io:format("Received \n",[]),
-      case catch solve_refined(Parent, refine(M)) of
+    {M, Ref} ->
+      Parent ! Ref,
+      %io:format("Received ~p\n",[M]),
+      case catch solve_refined(Parent, M) of
         {'EXIT',no_solution} ->
           %io:format("got exit"),
           Parent ! {done, self()};
@@ -250,7 +260,7 @@ worker_solve(Parent) ->
 
 %% benchmarks
 
--define(EXECUTIONS,30).
+-define(EXECUTIONS,100).
 
 bm(F) ->
     {T,_} = timer:tc(?MODULE,repeat,[F]),
@@ -260,7 +270,7 @@ repeat(F) ->
     [F() || _ <- lists:seq(1,?EXECUTIONS)].
 
 benchmarks(Puzzles) ->
-    [{Name,bm(fun()->solve(M) end)} || {Name,M} <- Puzzles].
+    [{Name,bm(fun()->io:format("~p",[Name]),solve(M) end)} || {Name,M} <- Puzzles].
 
 benchmarks() ->
   {ok,Puzzles} = file:consult("problems.txt"),
@@ -285,17 +295,23 @@ ppool(Available, All) ->
     {solution, Solution} ->
       [exit(Child, done)|| Child <- All],
       Solution;
-    {speculate, M, Parent} ->
+    {speculate, M, Brancher} ->
         case Available of
-          [] -> Parent ! {no},
+          [] -> Brancher ! {no},
                 ppool([], All);
-          [X|Xs] -> X ! {M},
-                    Parent ! {yes},
-                    ppool(Xs, All)
+          [X|Xs] -> Ref = make_ref(),
+                    X ! {M, Ref},
+                    receive
+                      Ref -> Brancher ! {yes},
+                            ppool(Xs, All)
+                    after 500 ->
+                        Brancher ! {no},
+                        ppool([], All)
+                    end
         end;
     {done, Pid} ->
         case lists:usort([Pid|Available]) == lists:usort(All) of
-          true -> exit(no_solution);
+          true -> exit(all_workers_stopped);
           false ->
             ppool([Pid|Available], All)
         end
