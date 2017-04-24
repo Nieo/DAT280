@@ -1,4 +1,4 @@
--module(sudoku).
+-module(labBGroup11_pRefile).
 %-include_lib("eqc/include/eqc.hrl").
 -compile(export_all).
 
@@ -250,6 +250,7 @@ repeat(F) ->
 
 benchmarks(Puzzles) ->
     Pid = spawn_link(fun ppool/0),
+    %io:format("register ~p",[Pid]),
     register(m_worker_pool, Pid),
     [{Name,bm(fun()->solve(M) end)} || {Name,M} <- Puzzles].
 
@@ -302,38 +303,3 @@ worker() ->
       whereis(m_worker_pool) ! {available, self()},
       worker()
   end.
-
-
-
-% par_benchmarks([], Completed) when length(Completed) < 7 -> receive
-%                                                               {Result} -> par_benchmarks([], Completed ++ [Result])
-%                                                             end;
-% par_benchmarks([], Completed) -> Completed;
-% par_benchmarks([P|Puzzles], Completed) ->
-%   case PoolPid ! {self(),[P]} of
-%     {no_worker_available} ->
-%       receive
-%         {Result} -> par_benchmarks([P|Puzzles], Completed ++ [Result])
-%       end;
-%     {ok} -> par_benchmarks(Puzzles, Completed)
-%   end.
-
-
-% m_worker_pool([A|Available],All) ->
-%   receive
-%     {Pid, Puzzle} -> case length([A|Available]) =:= 0 of ->
-%       true -> Pid ! {no_worker_available},
-%               m_worker_pool([], All)
-%       false -> A ! {Pid, Puzzle},
-%                Pid ! {ok}
-%                m_worker_pool(Available, All)
-%   end
-
-
-% worker() ->
-%   receive
-%     {Source, Work, Parameters} -> Result = Work(Parameters),
-%       Source ! {Result},
-%       worker()
-%   end.
-

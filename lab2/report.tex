@@ -78,18 +78,18 @@ The output for a sequential run is the following:
 
 %%%%%%%%%%%%%%%%%%%%%%
 \section{Running benchmarks in parallel}
-Our modified code for running benchmarks in parallel can be found in the file \textit{sudoku\textunderscore pBenchmarks.erl}.
+Our modified code for running benchmarks in parallel can be found in the file \textit{labBGroup11\textunderscore pBenchmarks.erl}.
 
 The output when running this code is the following:
 \begin{lstlisting}[escapeinside={(*}{*)}, tabsize=2]
-46447610,
-[[{wildcat,2.6919899999999997}],
- [{diabolical,107.40809}],
- [{vegard_hanssen,161.96584}],
- [{challenge,14.09126}],
- [{challenge1,464.47204}],
- [{extreme,40.35819}],
- [{seventeen,77.88618}]]}
+{46447610,
+[{wildcat,2.6919899999999997},
+ {diabolical,107.40809},
+ {vegard_hanssen,161.96584},
+ {challenge,14.09126},
+ {challenge1,464.47204},
+ {extreme,40.35819},
+ {seventeen,77.88618}]}
 \end{lstlisting}
 
 \begin{figure}[!htb]
@@ -99,7 +99,7 @@ The output when running this code is the following:
 \label{fig:benchpar}
 \end{center}
 \end{figure}
-  
+
 The speedup of the total running time is $1.37$. As expected, the solving of every single puzzle takes more time than benchmark but the total running time for solving all puzzles is faster since puzzles are solved in parallel. Having one dedicated core for each puzzle would probably give the same running time as benchmark for each single puzzle, resulting in a total solving time equal to the solving time of the hardest individual puzzle.
 
 \newpage
@@ -109,9 +109,9 @@ As suggested in the lab PM, we tried two different approaches for parallelizing 
 
 %%%%%%%
 \subsection{Refine in parallel}
-Our modified code for running solve in parallel can be found in the file \textit{sudoku\textunderscore pRefine.erl}.
+Our modified code for running solve in parallel can be found in the file \textit{labBGroup11\textunderscore pRefine.erl}.
 
-Refining rows in parallel seems like a bad idea, probably because refining a row is a small task relative to the cost of parallelizing. At least, we were not able to build any solution using this approach that did not give a huge slowdown compared to benchmark. Below is the output of our submitted solution. Because of the long running time, the output is from a run with only one execution per puzzle instead of a hundred.
+Refining rows in parallel seems like a bad idea, because refining a row is a small task relative to the cost of parallelizing. Looking at figure \ref{fig:refparzoom} we can see that most of the time there is only 1 process working. At least, we were not able to build any solution using this approach that did not give a huge slowdown compared to benchmark. Below is the output of our submitted solution. Because of the long running time, the output is from a run with only one execution per puzzle instead of a hundred.
 
 \begin{lstlisting}[escapeinside={(*}{*)}, tabsize=2]
 {14422518,
@@ -138,12 +138,12 @@ Refining rows in parallel seems like a bad idea, probably because refining a row
 \label{fig:refparzoom}
 \end{center}
 \end{figure}
- 
+
 If running time scales linearly, a run with $100$ executions per puzzle would take $24$ minutes, which is a slowdown with a factor $22.61$.
 
 %%%%%%%
 \subsection{Solve in parallel}
-Our modified code for running solve in parallel can be found in the file \textit{sudoku\textunderscore pSolve.erl}.
+Our modified code for running solve in parallel can be found in the file \textit{labBGroup11\textunderscore pSolve.erl}.
 
 We use a pool of workers working in parallel. When a worker needs to guess a value and has more work to do, it asks another worker to do the next task and continues recursively with the rest of the tasks. If no other worker is available, it does the task by itself.
 
@@ -152,7 +152,7 @@ The output when running this code is the following:
 {31195465,
 [{wildcat,0.45045999999999997},
  {diabolical,5.8761},
- {vegard\textunderscore hanssen,33.04286},
+ {vegard_hanssen,33.04286},
  {challenge,3.36858},
  {challenge1,238.24194},
  {extreme,10.85971},

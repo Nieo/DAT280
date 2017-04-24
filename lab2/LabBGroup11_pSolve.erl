@@ -1,4 +1,4 @@
--module(speculativesudoku).
+-module(labBGroup11_pSolve).
 %-include_lib("eqc/include/eqc.hrl").
 -compile(export_all).
 
@@ -194,7 +194,7 @@ update_nth(I,X,Xs) ->
 solve(M) ->
     Filled = refine(fill(M)),
     Pid = self(),
-    [W|Workers] = [spawn(fun() -> worker_solve(Pid) end) || _ <- lists:seq(1, erlang:system_info(schedulers))],
+    [W|Workers] = [spawn(fun() -> worker_solve(Pid) end) || _ <- lists:seq(1, erlang:system_info(schedulers)-2)],
     Ref = make_ref(),
     W ! {Filled, Ref},
     receive

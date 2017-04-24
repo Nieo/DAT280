@@ -1,4 +1,4 @@
--module(osudoku).
+-module(labBGroup11_pBenchmarks).
 %-include_lib("eqc/include/eqc.hrl").
 -compile(export_all).
 
@@ -225,7 +225,7 @@ solve_one([M|Ms]) ->
 % Sequential 21.5 sec
 % Each solution in parallel 14.4
 
--define(EXECUTIONS,30).
+-define(EXECUTIONS,100).
 
 bm(F) ->
     {T,_} = timer:tc(?MODULE,repeat,[F]),
