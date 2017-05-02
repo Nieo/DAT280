@@ -1,0 +1,3 @@
+MacBook Pro
+page_rank_seq 136 sec
+page_rank_par 70 sec

@@ -1,5 +1,5 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%% This is a very simple implementation of map-reduce, in both 
+%% This is a very simple implementation of map-reduce, in both
 %% sequential and parallel versions.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -7,7 +7,7 @@
 -compile(export_all).
 
 %% We begin with a simple sequential implementation, just to define
-%% the semantics of map-reduce. 
+%% the semantics of map-reduce.
 
 %% The input is a collection of key-value pairs. The map function maps
 %% each key value pair to a list of key-value pairs. The reduce
@@ -38,15 +38,15 @@ group(K,Vs,Rest) ->
 map_reduce_par(Map,M,Reduce,R,Input) ->
     Parent = self(),
     Splits = split_into(M,Input),
-    Mappers = 
+    Mappers =
 	[spawn_mapper(Parent,Map,R,Split)
 	 || Split <- Splits],
-    Mappeds = 
+    Mappeds =
 	[receive {Pid,L} -> L end || Pid <- Mappers],
-    Reducers = 
-	[spawn_reducer(Parent,Reduce,I,Mappeds) 
+    Reducers =
+	[spawn_reducer(Parent,Reduce,I,Mappeds)
 	 || I <- lists:seq(0,R-1)],
-    Reduceds = 
+    Reduceds =
 	[receive {Pid,L} -> L end || Pid <- Reducers],
     lists:sort(lists:flatten(Reduceds)).
 
