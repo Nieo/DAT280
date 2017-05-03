@@ -37,15 +37,15 @@ group(K,Vs,Rest) ->
 
 map_reduce_par(Map,M,Reduce,R,Input) ->
     Parent = self(),
-    Splits = split_into(M,Input),
-    Mappers =
-    [spawn_mapper(Parent,Map,R,Split)
-     || Split <- Splits],
+    Nodes = nodes() ++ [node()],
+    NodeSplits = split_into(length(Nodes),split_into(M,Input)),
+    Mappers = [rpc:call(Node, ?MODULE, spawn_mapper, [Parent,Map,R,Split])
+     || {Splits, Node} <- lists:zip(NodeSplits, Nodes), Split <- Splits],
     Mappeds =
     [receive {Pid,L} -> L end || Pid <- Mappers],
-    Reducers =
-    [spawn_reducer(Parent,Reduce,I,Mappeds)
-     || I <- lists:seq(0,R-1)],
+    Iss = split_into(length(Nodes), lists:seq(0, R-1)),
+    Reducers = [rpc:call(Node,?MODULE, spawn_reducer,[Parent,Reduce,I,Mappeds])
+     || {Is, Node} <- lists:zip(Iss,Nodes), I <- Is],
     Reduceds =
     [receive {Pid,L} -> L end || Pid <- Reducers],
     lists:sort(lists:flatten(Reduceds)).
@@ -68,6 +68,7 @@ split_into(N,L,Len) ->
     [Pre|split_into(N-1,Suf,Len-(Len div N))].
 
 spawn_reducer(Parent,Reduce,I,Mappeds) ->
+    %%io:format("Spawing reducer with id: ~p\n",[I]),
     Inputs = [KV
           || Mapped <- Mappeds,
          {J,KVs} <- Mapped,
