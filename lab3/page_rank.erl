@@ -20,15 +20,15 @@ page_rank() ->
     Urls = dets:foldl(fun({K,_},Keys)->[K|Keys] end,[],web),
     Res = map_reduce:map_reduce_seq(fun map/2, fun reduce/2,
 			      [{Url,ok} || Url <- Urls]),
-    io:format("length ~p", [length(Res)]),
+    %io:format("length ~p", [length(Res)]),
     Res.
 
 page_rank_par() ->
     dets:open_file(web,[{file,"web.dat"}]),
     Urls = dets:foldl(fun({K,_},Keys)->[K|Keys] end,[],web),
-    Res = lb_map_reduce:map_reduce_par(fun map/2, 32, fun reduce/2, 32,
+    Res = ft_map_reduce:map_reduce_par(fun map/2, 32, fun reduce/2, 32,
 			      [{Url,ok} || Url <- Urls]),
-    io:format("length ~p", [length(Res)]),
+    %io:format("length ~p", [length(Res)]),
     Res.
 
 

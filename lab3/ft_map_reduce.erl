@@ -3,7 +3,7 @@
 %% sequential and parallel versions.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
--module(lb_map_reduce).
+-module(ft_map_reduce).
 -compile(export_all).
 
 %% We begin with a simple sequential implementation, just to define
@@ -36,6 +36,7 @@ group(K,Vs,Rest) ->
     [{K,lists:reverse(Vs)}|group(Rest)].
 
 map_reduce_par(Map,M,Reduce,R,Input) ->
+    process_flag(trap_exit, true),
     Splits = split_into(M,Input),
     Mappeds = worker_pool([ fun() ->
         Mapped = [{erlang:phash2(K2,R),{K2,V2}}
@@ -81,33 +82,40 @@ spawn_reducer(Parent,Reduce,I,Mappeds) ->
 
 worker_pool(Funs) ->
     Master = self(),
-    [rpc:call(Node, ?MODULE, spawn_workers, [Master]) || Node<- nodes() ++ [node()]],
-    worker_pool(Funs, [], length(Funs)).
+    Workers = lists:flatten([rpc:call(Node, ?MODULE, spawn_workers, [Master]) || Node<- nodes() ++ [node()]]),
+    [link(Worker)|| Worker <- Workers],
+    worker_pool(Funs, [], [], Workers).
 
-worker_pool(_, Result, 0)-> Result;
-worker_pool([], Result, Count) ->
+
+
+worker_pool([F|Funs],InProgress, Result, [W|IdleWorkers]) ->
+    W ! F,
+    worker_pool(Funs, InProgress ++ [{W,F}], Result, IdleWorkers);
+worker_pool([], [], Result, IdleWorkers)->
+    [exit(Worker, kill)|| Worker <- IdleWorkers],
+    Result;
+worker_pool([], InProgress, Result, IdleWorkers) ->
+    %io:format("~p ~p \n", [InProgress, length(Result)]),
     receive
-        {available, _} ->
-            worker_pool([], Result, Count);
-        {done, _, Res} ->
-            worker_pool([], Result ++ [Res], Count-1)
+        {done, Pid, Res} ->
+            worker_pool([], [{P, Fun}|| {P, Fun} <- InProgress, P=/=Pid], Result ++ [Res], IdleWorkers ++ [Pid]);
+        {'EXIT', Pid, Reason} ->
+            %io:format("Exit : ~p ~p\n ",[Pid, Reason]),
+            worker_pool([Fun|| {P, Fun} <- InProgress, Pid == P], lists:keydelete(Pid,1,InProgress), Result, [Worker|| Worker <- IdleWorkers, Worker /= Pid])
     end;
-worker_pool([F|Funs], Result, Count) ->
+worker_pool([F|Funs], InProgress, Result, IdleWorkers) ->
+    %io:format("~p ~p ~p \n", [[F|Funs], InProgress, length(Result)]),
     receive
-        {available, Pid} ->
-            Pid ! F,
-            worker_pool(Funs, Result, Count);
         {done, Pid, Res} ->
             Pid ! F,
-            worker_pool(Funs, Result ++ [Res], Count-1)
+            worker_pool(Funs, [{P, Fun}|| {P, Fun} <- InProgress, P=/=Pid] ++ [{Pid, F}], Result ++ [Res], IdleWorkers);
+        {'EXIT', Pid, Reason} ->
+            %io:format("F Exit : ~p ~p\n ",[Pid, Reason]),
+            worker_pool([F|Funs] ++ [Fun|| {P, Fun} <- InProgress, Pid == P], lists:keydelete(Pid,1,InProgress), Result, [Worker|| Worker <- IdleWorkers, Worker /= Pid])
     end.
 
 spawn_workers(Master) ->
-    [spawn_link(?MODULE, init_worker, [Master])|| _ <- lists:seq(1, erlang:system_info(schedulers))].
-
-init_worker(Master) ->
-    Master ! {available, self()},
-    worker(Master).
+    [spawn(?MODULE, worker, [Master])|| _ <- lists:seq(1, erlang:system_info(schedulers))].
 
 worker(Master) ->
     receive
