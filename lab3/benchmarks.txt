@@ -1,12 +1,17 @@
-MacBook Pro
 160Mb of data
+i5 2 core 2.9GHz
 page_rank_seq 136 sec
 page_rank_par 70 sec
 
-2 x i5 2core + 1 x i5 4 core
+i5 2 core 2.9GHz
+i5 2 core 1.6GHz
+i5 4 core 3.4GHz
+dist_map_reduce 41.0 sec (About the same result when removing the 1.6GHz processor)
 lb_map_reduce 16.5 sec
+ft_map_reduce 15.8 sec
 
 9Mb of data
+i5 2 core 2.9Ghz
 dist_map_reduce
 2 nodes same computer 7.8 sec
 2 nodes on different computers via VPN 6.5 sec
