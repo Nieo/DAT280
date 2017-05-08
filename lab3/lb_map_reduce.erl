@@ -1,19 +1,13 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%% This is a very simple implementation of map-reduce, in both
-%% sequential and parallel versions.
+%% By: Erik Pihl & David Ådvall
+%% Lab group 11
+%% This is an implementation of map-reduce with load-balancing features.
+%% It distributes the work so that faster nodes get more work and all
+%% processes should finish at approximately the same time.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 -module(lb_map_reduce).
 -compile(export_all).
-
-%% We begin with a simple sequential implementation, just to define
-%% the semantics of map-reduce.
-
-%% The input is a collection of key-value pairs. The map function maps
-%% each key value pair to a list of key-value pairs. The reduce
-%% function is then applied to each key and list of corresponding
-%% values, and generates in turn a list of key-value pairs. These are
-%% the result.
 
 map_reduce_seq(Map,Reduce,Input) ->
     Mapped = [{K2,V2}
@@ -53,14 +47,6 @@ map_reduce_par(Map,M,Reduce,R,Input) ->
 
     lists:sort(lists:flatten(Reduceds)).
 
-spawn_mapper(Parent,Map,R,Split) ->
-    spawn_link(fun() ->
-            Mapped = [{erlang:phash2(K2,R),{K2,V2}}
-                  || {K,V} <- Split,
-                     {K2,V2} <- Map(K,V)],
-            Parent ! {self(),group(lists:sort(Mapped))}
-        end).
-
 split_into(N,L) ->
     split_into(N,L,length(L)).
 
@@ -70,18 +56,10 @@ split_into(N,L,Len) ->
     {Pre,Suf} = lists:split(Len div N,L),
     [Pre|split_into(N-1,Suf,Len-(Len div N))].
 
-spawn_reducer(Parent,Reduce,I,Mappeds) ->
-    Inputs = [KV
-          || Mapped <- Mappeds,
-         {J,KVs} <- Mapped,
-         I==J,
-         KV <- KVs],
-    spawn_link(fun() -> Parent ! {self(),reduce_seq(Reduce,Inputs)} end).
-
-
 worker_pool(Funs) ->
     Master = self(),
-    [rpc:call(Node, ?MODULE, spawn_workers, [Master]) || Node<- nodes() ++ [node()]],
+    [rpc:call(Node, ?MODULE, spawn_workers, [Master])
+        || Node<- nodes() ++ [node()]],
     worker_pool(Funs, [], length(Funs)).
 
 worker_pool(_, Result, 0)-> Result;
@@ -103,7 +81,8 @@ worker_pool([F|Funs], Result, Count) ->
     end.
 
 spawn_workers(Master) ->
-    [spawn_link(?MODULE, init_worker, [Master])|| _ <- lists:seq(1, erlang:system_info(schedulers))].
+    [spawn_link(?MODULE, init_worker, [Master])
+        || _ <- lists:seq(1, erlang:system_info(schedulers))].
 
 init_worker(Master) ->
     Master ! {available, self()},
