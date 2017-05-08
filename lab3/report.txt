@@ -30,7 +30,7 @@ Our code:
 
 Conclusions
 ===========
-Our first intuitive observation is that distributed computations is a rather easy task to get reasonably good when working with Erlang.
+Our first intuitive observation is that distributed computations is a nice and elegant thing to work with.
 
 Furthermore, it is obvious that load balancing is important. At least when working with different machines. When running dist_map_reduce on the cluster, the 1.6GHz machine is an obvious bottleneck since every machine gets about the same amount of work.
 
