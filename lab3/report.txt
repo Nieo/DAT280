@@ -1,0 +1,39 @@
+Lab 3 report
+
+David Ådvall and Erik Pihl
+##########################
+
+Test setup
+==========
+Tests were run on 158 megabytes of data.
+
+The test suite consisted of 3 computers:
+- i5 2 core 2.9GHz
+- i5 2 core 1.6GHz
+- i5 4 core 3.4GHz
+They were all connected on the same local network. The last two mentioned computers were connected by wire and the first mentioned computer connected with WiFi.
+
+The given code, both the fully sequential MapReduce and the naive parallel MapReduce, were run as benchmarks on the first mentioned of the three computers.
+
+We keep the number of mapper jobs (32) and reduce jobs (32) as constants through all testing.
+
+Performance measurements
+========================
+Benchmarks:
+- Sequential MapReduce 136 sec
+- Naive parallel MapReduce 70 sec
+
+Our code:
+- dist_map_reduce 41.0 sec (About the same result when removing the 1.6GHz processor)
+- lb_map_reduce 16.5 sec
+- ft_map_reduce 15.8 sec (when not killing off any workers)
+
+Conclusions
+===========
+Our first intuitive observation is that distributed computations is a rather easy task to get reasonably good when working with Erlang.
+
+Furthermore, it is obvious that load balancing is important. At least when working with different machines. When running dist_map_reduce on the cluster, the 1.6GHz machine is an obvious bottleneck since every machine gets about the same amount of work.
+
+It is also notable that we did not see a cost in performance for adding fault tolerance; lb_map_reduce and ft_map_reduce ran in approximately the same time.
+
+In our testing, we chose to only run one node per machine, with an amount of workers in every node equal to the number of hardware threads on the machine. It might be possible to get a little more speedup by running more workers on each machine, since that would allow more work to be scheduled while handling IO.
