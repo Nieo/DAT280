@@ -1,10 +1,12 @@
 import Data.Array.Repa as Repa
 import Data.Array.Repa.Eval
+import Data.Vector.Unboxed.Base
+import Criterion.Main
 
 -- (buy, sell, profit)
 
-buySell :: (Array D DIM1 (Int,Int,Int)) -> Array U DIM0 (Int, Int, Int)
-buySell arr = Repa.foldS maxProfit (0,0,0) arr
+buySell :: Monad m => (Array U DIM1 Int) -> m(Array U DIM0 (Int, Int, Int))
+buySell arr = Repa.foldP maxProfit (0,0,0) (indexed arr)
 
 maxProfit :: (Int, Int, Int) -> (Int, Int, Int) -> (Int,Int,Int)
 maxProfit (aBuy,aSell,aProfit) (bBuy,bSell,bProfit)
@@ -36,5 +38,5 @@ indexed arr = Repa.traverse arr id (\src idx@(Z :. i) -> mmax arr i)
 
 main = do
     let ins = fromList (Z :. (8::Int)) [0,0,2,9,8,10,1,10] :: Array U DIM1 Int
-    print(buySell (indexed ins ::  Array D DIM1 (Int,Int,Int)))
+    print(buySell ins  :: Maybe (Array U DIM0(Int,Int,Int)))
 
