@@ -1,3 +1,14 @@
+Work: foldP and traverse both interate over the entire array and produce n work
+each call to mmax produces k work where k = [1..n] and that produce n(n+1)/2 work
+This gives a total of n + n(n+1)/2 == O(n^2) work
+
+Span: foldP and traverse have have a span of 1 each.
+The greates span of mmax is max(k)=n.
+This gives a total of 1+1+n == O(n) span.
+
+
+Tests are run on an array of size 10000 with random integers.
+
 Test machine:
 2-core 4-thread
 Sequential
