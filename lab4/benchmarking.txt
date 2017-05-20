@@ -1,10 +1,12 @@
-Work: foldP and traverse both interate over the entire array and produce n work
-each call to mmax produces k work where k = [1..n] and that produce n(n+1)/2 work
-This gives a total of n + n(n+1)/2 == O(n^2) work
+Work: foldP and traverse both iterate over the entire array and produce n work.
+Each call to mmax produces k work where k = [1..n] and that produce n(n+1)/2 work.
+This gives a total of n + n(n+1)/2 == O(n^2) work.
 
-Span: foldP and traverse have have a span of 1 each.
-The greates span of mmax is max(k)=n.
+Span: foldP and traverse have a span of 1 each.
+The greatest span of mmax is max(k)=n.
 This gives a total of 1+1+n == O(n) span.
+
+In summary, we have w = O(n^2) and d = O(n). This gives a "parallelism" of w/d = O((n^2)/n) = O(n). This means that with enough processors, we would get a running time of O(n).
 
 
 Tests are run on an array of size 10000 with random integers.
