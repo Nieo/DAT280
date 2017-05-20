@@ -1,3 +1,6 @@
+import Data.List
+import System.Random
+
 import Data.Array.Repa as Repa
 import Data.Array.Repa.Eval
 import Data.Vector.Unboxed.Base
@@ -5,8 +8,8 @@ import Criterion.Main
 
 -- (buy, sell, profit)
 
-buySell :: Monad m => (Array U DIM1 Int) -> m(Array U DIM0 (Int, Int, Int))
-buySell arr = Repa.foldP maxProfit (0,0,0) (indexed arr)
+buySell ::(Array U DIM1 Int) -> String--m(Array U DIM0 (Int, Int, Int))
+buySell arr = show(Repa.foldP maxProfit (0,0,0) (indexed arr) :: Maybe (Array U DIM0(Int,Int,Int)) )
 
 maxProfit :: (Int, Int, Int) -> (Int, Int, Int) -> (Int,Int,Int)
 maxProfit (aBuy,aSell,aProfit) (bBuy,bSell,bProfit)
@@ -38,5 +41,8 @@ indexed arr = Repa.traverse arr id (\src idx@(Z :. i) -> mmax arr i)
 
 main = do
     let ins = fromList (Z :. (8::Int)) [0,0,2,9,8,10,1,10] :: Array U DIM1 Int
-    print(buySell ins  :: Maybe (Array U DIM0(Int,Int,Int)))
+    let testsize = 10000
+    let test = fromList (Z :. (testsize::Int)) (take testsize (randoms (mkStdGen 211570155)) :: [Int]) :: Array U DIM1 Int
+    print(buySell ins )
+    defaultMain[bench "buySell" (nf buySell test)]
 
