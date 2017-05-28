@@ -1,28 +1,50 @@
-Work: foldP and traverse both iterate over the entire array and produce n work.
-Each call to mmax produces k work where k = [1..n] and that produce n(n+1)/2 work.
-This gives a total of n + n(n+1)/2 == O(n^2) work.
+ANALYSIS
+========
 
-Span: foldP and traverse have a span of 1 each.
-The greatest span of mmax is max(k)=n.
-This gives a total of 1+1+n == O(n) span.
+Assume n is the size of the input array.
+First, we go through the work and span of the building blocks of our code:
 
-In summary, we have w = O(n^2) and d = O(n). This gives a "parallelism" of w/d = O((n^2)/n) = O(n). This means that with enough processors, we would get a running time of O(n).
+- maxProfit and gt are simply comparison of two elements. This has constant work and constant span.
+- maxafter is sequential. Therefore its work is equal to its span. They are both (n-c), where c is the index of an element in the input array.
+- mmax does some constant operations an calls maxafter one time.
+- indexed is, in essence, a parallel map of the function mmax on the input array (We use traverse instead of map but they should be essentially the same thing in terms of work and span.) The map itself has depth of 1 and the mapped function has, as concluded above, w=d=(n-c). c goes from 0 to (n-1), which gives w = n(n+1)/2 and d = max(n-c) = n for the indexed function.
+
+buySell is the top level. It runs, in sequence, indexed on the input array followed by (foldP maxprofit) on the resulting array. maxProfit has, as concluded above, constant work and span. Parallel fold of a function with constant work and span has w = n and d = (log2 n). [ref1] 
+
+We conclude that the total amount of work is w_indexed + w_(foldP maxprofit) = n(n+1)/2 + n
+We also conclude that the total span is d_indexed + d_(foldP maxprofit) = n + log2 n
+
+This tells us the following about the running time T on a machine with P processors:
+w/P ≤ T < w/P + d [ref2]
+(n(n+1)/2 + n) / P ≤ T < ((n(n+1)/2 + n) / P) + (n + log2 n)
+
+On a 2-core machine, this would mean the following:
+w/2 ≤ T < w/2 + d
+(n(n+1)/2 + n) / 2 ≤ T < ((n(n+1)/2 + n) / 2) + (n + log2 n)
+The dominating term on both sides of this is n^2, which we should be able to verify by experiment.
+
+[ref1]: see the example with the (+) function here: http://www.cs.cmu.edu/~scandal/cacm/node1.html
+[ref2]: http://www.cs.cmu.edu/~scandal/cacm/node3.html
 
 
-Tests are run on an array of size 10000 with random integers.
+BENCHMARKING
+============
+We used a MacBook pro with 2 cores for benchmarking.
+All runs were made with the flags +RTS -N2
 
-Test machine:
-2-core 4-thread
-Sequential
-benchmarking buySell
-time                 1.179 s    (1.126 s .. 1.287 s)
-                     0.999 R²   (0.998 R² .. 1.000 R²)
-mean                 1.134 s    (1.119 s .. 1.163 s)
-std dev              24.60 ms   (0.0 s .. 25.23 ms)
+Measurements:
+n=10000: 1.0 s
+n=20000: 6.0 s
+n=30000: 15.9 s
+n=40000: 31.0 s
 
-Flags: +RTS -N4 -ls
-benchmarking buySell
-time                 1.104 s    (1.028 s .. 1.165 s)
-                     0.999 R²   (0.999 R² .. 1.000 R²)
-mean                 1.106 s    (1.097 s .. 1.113 s)
-std dev              10.97 ms   (0.0 s .. 12.27 ms)
+
+DISCUSSION
+==========
+Assume n=10000 in 1.0 s is our baseline. Our theoretical bounds on T, both the higher and lower ones, are very close to n^2. If we assume that is close enough, we should, in theory, get approximately the following running time for the different n that we experimented with:
+n=20000: 4.0 s
+n=30000: 9.0 s
+n=40000: 16.0 s
+
+Our theoretically predicted values seem to be a bit off, but not way off. The measurements indicates that that the complexity is approximately O(n^2.5) rather than the predicted O(n^2).
+
